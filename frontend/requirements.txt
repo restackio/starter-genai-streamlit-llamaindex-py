@@ -1,2 +1,2 @@
 streamlit==1.31.1
-temporalio==1.6.0
+-e ../restack
