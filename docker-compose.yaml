@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  frontend:
+    image: starter-frontend-image:latest
+    build:
+      context: .
+      dockerfile: ./docker/Dockerfile.frontend
+    ports:
+      - "8501:8501"
+    depends_on:
+      - backend
+
+  backend:
+    image: starter-backend-image:latest
+    build:
+      context: .
+      dockerfile: ./docker/Dockerfile.backend
+    environment:
+      - TEMPORAL_HOST=temporal:7233
+    depends_on:
+      - temporal
+
+  temporal:
+    image: starter-temporal-image:latest
+    build:
+      context: ./docker
+      dockerfile: Dockerfile.temporal
+    ports:
+      - "7233:7233"
+      - "8233:8233"
