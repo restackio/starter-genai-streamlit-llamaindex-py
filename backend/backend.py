@@ -4,13 +4,17 @@ import temporalio.client
 from temporalio import worker
 from activities import create_or_load_index, query_index
 from workflow import PdfWorkflow
+import os
+
+# Get environment variables
+TEMPORAL_URL = os.getenv("TEMPORAL_URL", "localhost:7233")
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 async def run_worker():
-    client = await temporalio.client.Client.connect("localhost:7233")
+    client = await temporalio.client.Client.connect(TEMPORAL_URL)
     logger.info("Connected to Temporal server.")
     async with worker.Worker(
         client,

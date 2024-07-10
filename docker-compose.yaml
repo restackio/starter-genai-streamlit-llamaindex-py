@@ -10,6 +10,8 @@ services:
       - "8501:8501"
     depends_on:
       - backend
+    environment:
+      - TEMPORAL_URL=${TEMPORAL_URL}
 
   backend:
     image: starter-backend-image:latest
@@ -17,7 +19,7 @@ services:
       context: .
       dockerfile: ./docker/Dockerfile.backend
     environment:
-      - TEMPORAL_HOST=temporal:7233
+      - TEMPORAL_URL=${TEMPORAL_URL}
     depends_on:
       - temporal
 

@@ -2,7 +2,10 @@ import streamlit as st
 import asyncio
 import temporalio.client
 import time
-import json
+import os
+
+# Get environment variables
+TEMPORAL_URL = os.getenv("TEMPORAL_URL", "localhost:7233")
 
 async def main():
     # Define Streamlit app
@@ -33,7 +36,7 @@ async def main():
         else:
             try:
                 with st.spinner("Processing..."):
-                    client = await temporalio.client.Client.connect("localhost:7233")
+                    client = await temporalio.client.Client.connect(TEMPORAL_URL)
                     handle = await client.start_workflow(
                         workflow="PdfWorkflow",
                         task_queue="index-task-queue",
