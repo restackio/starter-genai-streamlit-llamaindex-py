@@ -12,13 +12,13 @@ RUN apk --no-cache add curl bash && \
 WORKDIR /app
 
 # Copy the start.sh script into the container
-COPY ../docker/start.sh start.sh
+COPY docker/start.sh ./start.sh
 
 # Make the start.sh script executable
-RUN chmod +x start.sh
+RUN chmod +x /app/start.sh
 
 # Expose the ports the app runs on
 EXPOSE 7233 8233
 
 # Start the Temporal server and then run the Temporal operator command
-CMD start.sh
+CMD /app/start.sh
