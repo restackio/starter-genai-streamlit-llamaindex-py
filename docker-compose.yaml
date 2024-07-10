@@ -26,8 +26,8 @@ services:
   temporal:
     image: starter-temporal-image:latest
     build:
-      context: ./docker
-      dockerfile: Dockerfile.temporal
+      context: .
+      dockerfile: .docker/Dockerfile.temporal
     ports:
       - "7233:7233"
       - "8233:8233"
