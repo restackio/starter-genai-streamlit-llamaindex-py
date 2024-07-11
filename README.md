@@ -1,22 +1,43 @@
-# GenAI Starter - Llamaindex - Restack
+# GenAI Starter - Llamaindex - Streamlit - Restack
 
-An example of how to deploy a [LangChain](https://www.llamaindex.ai/) application with [Streamlit](https://streamlit.io/) with Restack.
+An example of how to deploy a [LLamaindex](https://www.llamaindex.ai/) application with [Streamlit](https://streamlit.io/) with Restack orchestration.
 
 ---
 
-### Environment Variables
+# Run locally
 
-<details>
+## Frontend
 
-<summary>ℹ️ OpenAI models</summary>
+./frontend pip i && streamlit run frontend.py
 
-In this example, we chose OpenAI's models for the sake of simplicity, but you're free to choose the models you prefer as LangChain provides support for other models as well. In that case, we recommend you remove the `OPENAI_API_KEY` environment variable and the relevant application code.
+Streamlit frontend available at:
+localhost:8501
 
-</details>
+## Backend
 
-To ensure your successful deployment, set the following environment variables:
+Requirements
 
-```bash
-# Get it from https://platform.openai.com/account/api-keys
-OPENAI_API_KEY=<YOUR_API_KEY>
-```
+brew install temporal
+
+Start temporal server
+temporal server start-dev
+
+Temporal server available at:
+localhost:8233
+
+./backend pip i && python backend.py
+
+# Run in docker
+
+docker compose up -d --build
+Will start frontend, backend and temporal server
+
+Streamlit frontendavailable at:
+localhost:8501
+
+Temporal server available at:
+localhost:8233
+
+### Deploy
+
+Link to Restack deploy template
