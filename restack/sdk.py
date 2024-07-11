@@ -2,7 +2,8 @@ import logging
 import temporalio.client
 from temporalio import worker, activity as job, workflow
 import os
-import docker
+with workflow.unsafe.imports_passed_through():
+    import docker
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -132,4 +133,15 @@ class stack:
             raise
         except docker.errors.APIError as e:
             logger.error(f"Failed to start container for service {name}: {e}")
+            raise
+    async def remove_service(self, name):
+        try:
+            container = self.client.containers.get(name)
+            container.stop()
+            container.remove()
+            logger.info(f"Stopped and removed container for service: {name}")
+        except docker.errors.NotFound:
+            logger.warning(f"Container for service {name} not found. It may have already been removed.")
+        except docker.errors.APIError as e:
+            logger.error(f"Failed to remove container for service {name}: {e}")
             raise

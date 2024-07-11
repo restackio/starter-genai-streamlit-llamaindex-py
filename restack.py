@@ -1,3 +1,5 @@
+import asyncio
+import sys
 from restack.sdk import stack
 
 @stack.defn
@@ -20,7 +22,7 @@ async def stack_up(self):
         depends_on=[temporal['name']]
     )
     
-    frontend = await self.service(
+    await self.service(
         name='frontend',
         image='starter-frontend-image:latest',
         build_context='.',
@@ -30,6 +32,20 @@ async def stack_up(self):
         depends_on=[backend['name'], temporal['name']]
     )
 
+@stack.defn
+async def stack_down(self):
+    await self.remove_service(name='frontend')
+    await self.remove_service(name='backend')
+    await self.remove_service(name='temporal')
+
 if __name__ == "__main__":
     import asyncio
-    asyncio.run(stack_up())
+    if len(sys.argv) != 2 or sys.argv[1] not in ["up", "down"]:
+        print("Usage: python restack.py [up|down]")
+        sys.exit(1)
+    
+    action = sys.argv[1]
+    if action == "up":
+        asyncio.run(stack_up())
+    elif action == "down":
+        asyncio.run(stack_down())
