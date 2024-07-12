@@ -1,43 +1,41 @@
 # GenAI Starter - Llamaindex - Streamlit - Restack
 
-An example of how to deploy a [LLamaindex](https://www.llamaindex.ai/) application with [Streamlit](https://streamlit.io/) with Restack orchestration.
+An example of how to deploy a [LLamaindex](https://www.llamaindex.ai/) application with [Streamlit](https://streamlit.io/) with Restack orchestration build with [Temporal](https://temporal.io).
 
 ---
 
 # Run locally
 
-## Frontend
+python restack.py init
+python restack.py dev
 
-./frontend pip i && streamlit run frontend.py
+# Build and run in docker
 
-Streamlit frontend available at:
-localhost:8501
+python restack.py docker
+python restack.py down
 
-## Backend
+# Run locally individually
 
-Requirements
+## Run temporal server
+
+python restack.py init
+
+## Or in terminal
 
 brew install temporal
-
 Start temporal server
 temporal server start-dev
 
 Temporal server available at:
 localhost:8233
 
-./backend pip i && python backend.py
+## Run Frontend
 
-# Run in docker
+./frontend pip i && streamlit run frontend.py
 
-docker compose up -d --build
-Will start frontend, backend and temporal server
-
-Streamlit frontendavailable at:
+Streamlit frontend available at:
 localhost:8501
 
-Temporal server available at:
-localhost:8233
+## Run Backend
 
-### Deploy
-
-Link to Restack deploy template
+./backend pip i && python backend.py

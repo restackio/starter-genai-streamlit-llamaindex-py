@@ -2,33 +2,47 @@ import logging
 import temporalio.client
 from temporalio import worker, activity as job, workflow
 import os
-with workflow.unsafe.imports_passed_through():
-    import docker
+import asyncio
+import subprocess
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class restack:
-    def __init__(self, temporal_url=None):
-        self.temporal_url = temporal_url or os.getenv("TEMPORAL_URL", "localhost:7233")
+    def __init__(self):
+        if os.path.exists('/.dockerenv'):
+            self.temporal_url = "temporal:7233"
+        else:
+            self.temporal_url = "localhost:7233"
         self.client = None
         self.worker = None
 
     async def connect(self):
-        self.client = await temporalio.client.Client.connect(self.temporal_url)
-        logger.info("Connected to Temporal server.")
+        try:
+            self.client = await temporalio.client.Client.connect(self.temporal_url)
+            logger.info(f"Connected to Temporal server at {self.temporal_url}.")
+        except Exception as e:
+            logger.error(f"Failed to connect to Temporal server at {self.temporal_url}: {e}")
 
     async def container(self, workflows, jobs):
         await self.connect()
-        self.worker = worker.Worker(
-            client=self.client,
-            task_queue="restack",
-            workflows=workflows,
-            activities=jobs,
-        )
-        logger.info("Worker started...")
-        await self.worker.run()
+        if self.client:
+            try:
+                logger.info("Starting worker...")
+                self.worker = worker.Worker(
+                    client=self.client,
+                    task_queue="restack",
+                    workflows=workflows,
+                    activities=jobs,
+                )
+                logger.info("Worker started successfully.")
+                await self.worker.run()
+            except Exception as e:
+                logger.error(f"Failed to start worker: {e}")
+        else:
+            logger.error("Worker not started due to failed connection.")
+
 
     async def workflow(self, workflow, id, *args, **kwargs):
         await self.connect()
@@ -48,100 +62,129 @@ class restack:
             **kwargs
         )
 
-class stack:
-    def __init__(self):
-        self.services = []
-        self.client = self._initialize_docker_client()
-
-    def _initialize_docker_client(self):
+class service:
+    
+    async def docker_check():
         try:
-            client = docker.DockerClient(base_url='unix:///var/run/docker.sock')
-            client.ping()  # Check if Docker daemon is accessible
-            logger.info("Initialized stack instance and connected to Docker daemon.")
-            return client
-        except docker.errors.DockerException as e:
-            logger.error(f"Failed to initialize Docker client or connect to Docker daemon: {e}")
-            raise
+            result = subprocess.run(["docker", "info"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            if result.returncode != 0:
+                logger.error("Docker daemon is not running.")
+                return False
+            return True
+        except Exception as e:
+            logger.error(f"Error checking Docker daemon: {e}")
+            return False
+    
+    async def docker_build(name, dockerfile_content, logs=True):
+        dockerfile_path = f"./tmp/Dockerfile.{name}"
+        os.makedirs(os.path.dirname(dockerfile_path), exist_ok=True)
+        
+        with open(dockerfile_path, "w") as dockerfile:
+            dockerfile.write(dockerfile_content)
+        
+        build_command = ["docker", "build", "-t", f"{name}-image", "-f", dockerfile_path, "."]
+        build_process = await asyncio.create_subprocess_exec(*build_command, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+        
+        if logs:
+            while True:
+                line = await build_process.stdout.readline()
+                if line:
+                    logger.info(f"docker_build::{name}:: {line.decode().strip()}")
+                else:
+                    break
+            
+            while True:
+                line = await build_process.stderr.readline()
+                if line:
+                    logger.error(f"docker_build::{name}:: {line.decode().strip()}")
+                else:
+                    break
+        
+        await build_process.wait()
 
-    @staticmethod
-    def defn(func):
-        async def wrapper(*args, **kwargs):
-            instance = stack()
-            logger.info("Starting stack definition.")
-            await func(instance, *args, **kwargs)
-            await instance.build_and_run_services()
-            logger.info("Completed stack definition.")
-        return wrapper
-
-    async def service(self, name, image, build_context, dockerfile, ports=None, environment=None, depends_on=None):
-        service = {
-            'name': name,
-            'image': image,
-            'build': {
-                'context': build_context,
-                'dockerfile': dockerfile,
-                'args': ['DOCKER_BUILDKIT=1']
-            },
-            'ports': ports or [],
-            'environment': environment or [],
-            'depends_on': depends_on or []
-        }
-        self.services.append(service)
-        logger.info(f"Added service: {name}")
-        return service
-
-    async def build_and_run_services(self):
-        await self._build_and_run_service_group(self.services)
-
-    async def _build_and_run_service_group(self, services):
-        for service in services:
-            await self._build_and_run_service(service)
-
-    async def _build_and_run_service(self, service):
-        name = service['name']
-        image = service['image']
-        build_context = service['build']['context']
-        dockerfile = service['build']['dockerfile']
-        ports = {f"{port.split(':')[0]}/tcp": int(port.split(':')[1]) for port in service['ports']}
-        environment = {env.split('=')[0]: env.split('=')[1] for env in service['environment']}
-        depends_on = service['depends_on']
-
+    async def docker_run(name, ports=None, logs=True):
+        # Remove the existing container if it exists
+        remove_command = ["docker", "rm", "-f", name]
         try:
-            # Check if the image already exists
-            if not self.client.images.list(name=image):
-                # Build the Docker image
-                logger.info(f"Building image for service: {name}")
-                image, logs = self.client.images.build(path=build_context, dockerfile=dockerfile, tag=image)
-                for log in logs:
-                    logger.info(log.get('stream', '').strip())
-                logger.info(f"Built image for service: {name}")
-            else:
-                logger.info(f"Image for service {name} already exists. Skipping build.")
+            run_process = await asyncio.create_subprocess_exec(*remove_command, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+        except Exception as e:
+            logger.error(f"Failed to remove docker container {name}: {e}")
+            return
 
-            # Run the Docker container
-            self.client.containers.run(
-                image,
-                detach=True,
-                ports=ports,
-                environment=environment,
-                name=name,
-                links={dep: dep for dep in depends_on}
+        run_command = ["docker", "run", "--name", name]
+        if ports:
+            for port in ports:
+                run_command.extend(["-p", f"{port}:{port}"])
+        run_command.append(f"{name}-image")
+        
+        try:
+            run_process = await asyncio.create_subprocess_exec(*run_command, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+        except Exception as e:
+            logger.error(f"Failed to run docker container {name}: {e}")
+            return
+        
+        if logs:
+            while True:
+                line = await run_process.stdout.readline()
+                if line:
+                    logger.info(f"docker_run::{name}:: {line.decode().strip()}")
+                else:
+                    break
+            
+            while True:
+                line = await run_process.stderr.readline()
+                if line:
+                    logger.error(f"docker_run::{name}:: {line.decode().strip()}")
+                else:
+                    break
+        
+        await run_process.wait()
+
+    async def local_run(command, name):
+        logger.info(f"local_run::{name}:: Starting {name} with command: {command}")
+        try:
+            process = await asyncio.create_subprocess_exec(
+                *command,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
             )
-            logger.info(f"Started container for service: {name}")
-        except docker.errors.BuildError as e:
-            logger.error(f"Failed to build image for service {name}: {e}")
-            raise
-        except docker.errors.APIError as e:
-            logger.error(f"Failed to start container for service {name}: {e}")
-            raise
-    async def remove_service(self, name):
-        try:
-            container = self.client.containers.get(name)
-            container.stop()
-            container.remove()
-            logger.info(f"Stopped and removed container for service: {name}")
-        except docker.errors.NotFound:
-            logger.warning(f"Container for service {name} not found. It may have already been removed.")
-        except docker.errors.APIError as e:
-            logger.error(f"Failed to remove container for service {name}: {e}")
-            raise
+        except Exception as e:
+            logger.error(f"Failed to start local process {name}: {e}")
+            return
+        
+        while True:
+            line = await process.stdout.readline()
+            if line:
+                logger.info(f"local_run::{name}::stdout:: {line.decode().strip()}")
+            else:
+                break
+        
+        while True:
+            line = await process.stderr.readline()
+            if line:
+                logger.error(f"local_run::{name}::stderr:: {line.decode().strip()}")
+            else:
+                break
+        
+        return_code = await process.wait()
+        logger.info(f"local_run::{name}:: Process exited with return code {return_code}")
+
+    async def remove(name):
+        remove_command = ["docker", "rm", "-f", name]
+        remove_process = await asyncio.create_subprocess_exec(*remove_command, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+        
+        while True:
+            line = await remove_process.stdout.readline()
+            if line:
+                logger.info(f"remove_service::{name}:: {line.decode().strip()}")
+            else:
+                break
+        
+        while True:
+            line = await remove_process.stderr.readline()
+            if line:
+                logger.error(f"remove_service::{name}:: {line.decode().strip()}")
+            else:
+                break
+        
+        await remove_process.wait()

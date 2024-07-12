@@ -1,51 +1,36 @@
 import asyncio
 import sys
-from restack.sdk import stack
+from restack.sdk import restack, service
+from restack_services import streamlit, python, temporal
 
-@stack.defn
-async def stack_up(self):
+class Stack:
     
-    temporal = await self.service(
-        name='temporal',
-        image='starter-temporal-image:latest',
-        build_context='.',
-        dockerfile='./docker/Dockerfile.temporal',
-        ports=['7233:7233', '8233:8233']
-    )
-    
-    backend = await self.service(
-        name='backend',
-        image='starter-backend-image:latest',
-        build_context='.',
-        dockerfile='./docker/Dockerfile.backend',
-        environment=['TEMPORAL_URL=temporal:7233'],
-        depends_on=[temporal['name']]
-    )
-    
-    await self.service(
-        name='frontend',
-        image='starter-frontend-image:latest',
-        build_context='.',
-        dockerfile='./docker/Dockerfile.frontend',
-        ports=['8501:8501'],
-        environment=['TEMPORAL_URL=temporal:7233'],
-        depends_on=[backend['name'], temporal['name']]
-    )
+    async def stack_init(self):
+        await temporal.serve("temporal")
 
-@stack.defn
-async def stack_down(self):
-    await self.remove_service(name='frontend')
-    await self.remove_service(name='backend')
-    await self.remove_service(name='temporal')
+    async def stack_start(self, docker=False):
+        await python.run("backend", "backend/backend.py", docker)
+        await streamlit.serve("frontend", "frontend/frontend.py", docker)
+
+    async def stack_down(self):
+        await service.remove(name='frontend')
+        await service.remove(name='backend')
+        await service.remove(name='temporal')
 
 if __name__ == "__main__":
-    import asyncio
-    if len(sys.argv) != 2 or sys.argv[1] not in ["up", "down"]:
-        print("Usage: python restack.py [up|down]")
+    if len(sys.argv) < 2 or sys.argv[1] not in ["init", "dev", "docker", "down"]:
+        print("Usage: python restack.py [init|dev|docker|down]")
         sys.exit(1)
     
     action = sys.argv[1]
-    if action == "up":
-        asyncio.run(stack_up())
+
+    sdk = restack()
+    stack = Stack()
+    if action == "init":
+        asyncio.run(stack.stack_init())
+    if action == "dev":
+        asyncio.run(stack.stack_start(docker=False))
+    elif action == "docker":
+        asyncio.run(stack.stack_start(docker=True))
     elif action == "down":
-        asyncio.run(stack_down())
+        asyncio.run(stack.stack_down())
