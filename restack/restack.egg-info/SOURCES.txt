@@ -1,0 +1,6 @@
+setup.py
+restack.egg-info/PKG-INFO
+restack.egg-info/SOURCES.txt
+restack.egg-info/dependency_links.txt
+restack.egg-info/requires.txt
+restack.egg-info/top_level.txt

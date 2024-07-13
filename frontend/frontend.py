@@ -1,11 +1,13 @@
-import streamlit as st
-import asyncio
-import temporalio.client
-import time
+import sys
 import os
+import asyncio
+import streamlit as st
+import time
+# Add the parent directory to the Python path
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-# Get environment variables
-TEMPORAL_URL = os.getenv("TEMPORAL_URL", "localhost:7233")
+from restack.sdk import restack
+
 
 async def main():
     # Define Streamlit app
@@ -36,14 +38,12 @@ async def main():
         else:
             try:
                 with st.spinner("Processing..."):
-                    client = await temporalio.client.Client.connect(TEMPORAL_URL)
-                    handle = await client.start_workflow(
+                    sdk = restack()
+                    response = await sdk.workflow(
                         workflow="PdfWorkflow",
-                        task_queue="index-task-queue",
-                        args=[query, api_key],
                         id=f"workflow-{int(time.time() * 1000)}-{query.replace(' ', '-')}",
+                        args=[query, api_key],
                     )
-                    response = await handle.result()
 
                 # Optionally, display specific parts of the response
                 st.markdown("### Answer:")
