@@ -14,7 +14,7 @@ with workflow.unsafe.imports_passed_through():
 class PdfWorkflow:
     @workflow.run
     async def workflow(self, query: str, api_key: str) -> str:
-        sdk = restack() 
-        await sdk.run(create_or_load_index, (api_key), start_to_close_timeout=timedelta(seconds=300), create_container=True)
-        response = await sdk.run(query_index, (query), start_to_close_timeout=timedelta(seconds=300))
+        sdk = restack()
+        await sdk.run(create_or_load_index, api_key, start_to_close_timeout=timedelta(seconds=300))
+        response = await sdk.run(query_index, query, start_to_close_timeout=timedelta(seconds=300))
         return response

@@ -4,23 +4,33 @@ An example of how to deploy a [LLamaindex](https://www.llamaindex.ai/) applicati
 
 ---
 
-# Run locally
+# Start orchestator
 
 python restack.py init
+
+# Start with hot reloading
+
 python restack.py dev
 
-# Build and run in docker
+Streamlit frontend available at:
+localhost:8501
 
-python restack.py docker
+Temporal orchestator available at:
+localhost:8233
+
+# Start without hot reloading
+
+python restack.py up
+
+# Stop
+
 python restack.py down
 
-# Run locally individually
+---
 
-## Run temporal server
+# Run manually
 
-python restack.py init
-
-## Or in terminal
+## Run Temporal
 
 brew install temporal
 Start temporal server
@@ -31,11 +41,11 @@ localhost:8233
 
 ## Run Frontend
 
-./frontend pip i && streamlit run frontend.py
+./frontend pip install -r requirements.txt && streamlit run frontend.py
 
 Streamlit frontend available at:
 localhost:8501
 
 ## Run Backend
 
-./backend pip i && python backend.py
+./backend pip install -r requirements.txt && python backend.py
