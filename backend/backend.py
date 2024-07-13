@@ -14,12 +14,17 @@ from workflow import PdfWorkflow
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+logger.info("Starting backend script...")
+
 async def start_container():
-    sdk = restack()
-    await sdk.container(
-        workflows=[PdfWorkflow],
-        jobs=[create_or_load_index, query_index]
-    )
+    try:
+        sdk = restack()
+        await sdk.container(
+            workflows=[PdfWorkflow],
+            jobs=[create_or_load_index, query_index]
+        )
+    except Exception as e:
+        logger.error(f"Error starting container: {e}")
 
 if __name__ == "__main__":
     logger.info("Starting container...")

@@ -3,7 +3,7 @@ services:
     image: starter-frontend-image:latest
     build:
       context: .
-      dockerfile: ./docker/Dockerfile.frontend
+      dockerfile: ./tmp/Dockerfile.frontend
       args:
         - DOCKER_BUILDKIT=1
     ports:
@@ -17,7 +17,7 @@ services:
     image: starter-backend-image:latest
     build:
       context: .
-      dockerfile: ./docker/Dockerfile.backend
+      dockerfile: ./tmp/Dockerfile.backend
       args:
         - DOCKER_BUILDKIT=1
     environment:
@@ -29,7 +29,7 @@ services:
     image: starter-temporal-image:latest
     build:
       context: .
-      dockerfile: ./docker/Dockerfile.temporal
+      dockerfile: ./tmp/Dockerfile.temporal
       args:
         - DOCKER_BUILDKIT=1
     ports:
